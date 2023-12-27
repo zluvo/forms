@@ -20,11 +20,10 @@ export class FieldError extends Error {
 
 export abstract class Field {
   // input metadata
-  name?: string;
   label: string;
   type: string;
   placeholder: string;
-  value?: any = null;
+  value?: unknown;
 
   // input attributes
   maxlength?: number;
@@ -32,7 +31,7 @@ export abstract class Field {
   max?: number;
   required?: boolean;
 
-  errorMessage?: string;
+  error?: string;
 
   constructor(
     label: string,
@@ -44,7 +43,7 @@ export abstract class Field {
     max?: number,
     required?: boolean,
 
-    errorMessage?: string
+    error?: string
   ) {
     this.label = label;
     this.type = type;
@@ -55,34 +54,29 @@ export abstract class Field {
     this.max = max;
     this.required = required;
 
-    this.errorMessage = errorMessage;
+    this.error = error;
   }
 
-  validate(value: string): void {
-    if (this.required && (value === null || value === "")) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.required
-      );
-    }
-  }
+  abstract cast(): void;
 
-  abstract cast(value?: string): any;
+  abstract validate(): void;
 }
 
 /**
  * Field for text based inputs
  */
 export class TextField extends Field {
-  declare value?: string;
+  declare value?: string | null;
 
   constructor(params: {
+    value?: string;
     label: string;
     placeholder: string;
 
     maxlength?: number;
     required?: boolean;
 
-    errorMessage?: string;
+    error?: string;
   }) {
     super(
       params.label,
@@ -94,25 +88,24 @@ export class TextField extends Field {
       undefined,
       params.required,
 
-      params.errorMessage
+      params.error
     );
+    this.value = params.value;
   }
 
-  cast(value?: string): string | null {
-    if (value) {
-      return value;
+  cast() {
+    this.value = this.value || null;
+  }
+
+  validate(): void {
+    this.cast();
+
+    if (this.required && (!this.value || this.value === "")) {
+      throw new FieldError(this.error || Form.errors.required);
     }
-
-    return null;
-  }
-
-  validate(value: string): void {
-    super.validate(value);
-
-    if (this.maxlength && value.length > this.maxlength) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.maxLength
-      );
+    this.value = this.value as string;
+    if (this.maxlength && this.value.length > this.maxlength) {
+      throw new FieldError(this.error || Form.errors.maxLength);
     }
   }
 }
@@ -121,9 +114,10 @@ export class TextField extends Field {
  * Field for number based inputs
  */
 export class NumberField extends Field {
-  declare value?: number;
+  declare value?: number | null;
 
   constructor(params: {
+    value?: number;
     label: string;
     placeholder: string;
 
@@ -131,7 +125,7 @@ export class NumberField extends Field {
     max?: number;
     required?: boolean;
 
-    errorMessage?: string;
+    error?: string;
   }) {
     super(
       params.label,
@@ -143,35 +137,27 @@ export class NumberField extends Field {
       params.max,
       params.required,
 
-      params.errorMessage
+      params.error
     );
+    this.value = params.value;
   }
 
-  validate(value: string): void {
-    super.validate(value);
-
-    const casted = this.cast(value) as number;
-    if (isNaN(casted)) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.number
-      );
-    } else if (this.min && casted < this.min) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.min
-      );
-    } else if (this.max && casted > this.max) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.max
-      );
-    }
+  cast(): void {
+    this.value = this.value ? Number(this.value) : null;
   }
 
-  cast(value?: string): number | null {
-    if (value) {
-      return Number(value);
-    }
+  validate(): void {
+    this.cast();
 
-    return null;
+    if (this.required && !this.value) {
+      throw new FieldError(this.error || Form.errors.number);
+    }
+    this.value = this.value as number;
+    if (this.min && this.value < this.min) {
+      throw new FieldError(this.error || Form.errors.min);
+    } else if (this.max && this.value > this.max) {
+      throw new FieldError(this.error || Form.errors.max);
+    }
   }
 }
 /**
@@ -187,17 +173,16 @@ export class TextAreaField extends TextField {
 export class EmailField extends TextField {
   type = types.email;
 
-  validate(value: string): void {
-    super.validate(value);
+  validate(): void {
+    super.validate();
+    this.value = this.value as string;
 
     if (
-      !value.match(
+      !this.value.match(
         /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
       )
     ) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.email
-      );
+      throw new FieldError(this.error || Form.errors.email);
     }
   }
 }
@@ -215,17 +200,16 @@ export class PasswordField extends TextField {
 export class UrlField extends TextField {
   type = types.url;
 
-  validate(value: string): void {
-    super.validate(value);
+  validate(): void {
+    super.validate();
+    this.value = this.value as string;
 
     if (
-      !value.match(
+      !this.value.match(
         /(?:https?):\/\/(\w+:?\w*)?(\S+)(:\d+)?(\/|\/([\w#!:.?+=&%!\-\/]))?/
       )
     ) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.url
-      );
+      throw new FieldError(this.error || Form.errors.url);
     }
   }
 }
@@ -234,15 +218,16 @@ export class UrlField extends TextField {
  * Field for checkbox based inputs
  */
 export class CheckboxField extends Field {
-  declare value?: boolean;
+  declare value?: "true" | "false" | boolean | null;
 
   constructor(params: {
+    value?: boolean;
     label: string;
     placeholder: string;
 
     required?: boolean;
 
-    errorMessage?: string;
+    error?: string;
   }) {
     super(
       params.label,
@@ -254,25 +239,23 @@ export class CheckboxField extends Field {
       undefined,
       params.required,
 
-      params.errorMessage
+      params.error
     );
+    this.value = params.value;
   }
 
-  validate(value: string): void {
-    super.validate(value);
-
-    if (!(value === "true" || value === "false")) {
-      throw new FieldError(
-        this.errorMessage ? this.errorMessage : Form.errorMessages.checkbox
-      );
+  cast(): void {
+    if (this.value) {
+      this.value = this.value === "true" ? true : false;
     }
+
+    this.value = null;
   }
 
-  cast(value?: string): boolean | null {
-    if (value) {
-      return value === "true" ? true : false;
+  validate(): void {
+    this.cast();
+    if (this.required && !this.value) {
+      throw new FieldError(this.error || Form.errors.checkbox);
     }
-
-    return null;
   }
 }

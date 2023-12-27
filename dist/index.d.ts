@@ -2,50 +2,51 @@ declare class FieldError extends Error {
     constructor(message: string);
 }
 declare abstract class Field {
-    name?: string;
     label: string;
     type: string;
     placeholder: string;
-    value?: any;
+    value?: unknown;
     maxlength?: number;
     min?: number;
     max?: number;
     required?: boolean;
-    errorMessage?: string;
-    constructor(label: string, type: string, placeholder: string, maxlength?: number, min?: number, max?: number, required?: boolean, errorMessage?: string);
-    validate(value: string): void;
-    abstract cast(value?: string): any;
+    error?: string;
+    constructor(label: string, type: string, placeholder: string, maxlength?: number, min?: number, max?: number, required?: boolean, error?: string);
+    abstract cast(): void;
+    abstract validate(): void;
 }
 /**
  * Field for text based inputs
  */
 declare class TextField extends Field {
-    value?: string;
+    value?: string | null;
     constructor(params: {
+        value?: string;
         label: string;
         placeholder: string;
         maxlength?: number;
         required?: boolean;
-        errorMessage?: string;
+        error?: string;
     });
-    cast(value?: string): string | null;
-    validate(value: string): void;
+    cast(): void;
+    validate(): void;
 }
 /**
  * Field for number based inputs
  */
 declare class NumberField extends Field {
-    value?: number;
+    value?: number | null;
     constructor(params: {
+        value?: number;
         label: string;
         placeholder: string;
         min?: number;
         max?: number;
         required?: boolean;
-        errorMessage?: string;
+        error?: string;
     });
-    validate(value: string): void;
-    cast(value?: string): number | null;
+    cast(): void;
+    validate(): void;
 }
 /**
  * Field for textarea based inputs
@@ -58,7 +59,7 @@ declare class TextAreaField extends TextField {
  */
 declare class EmailField extends TextField {
     type: "email";
-    validate(value: string): void;
+    validate(): void;
 }
 /**
  * Field for password based inputs
@@ -71,21 +72,22 @@ declare class PasswordField extends TextField {
  */
 declare class UrlField extends TextField {
     type: "url";
-    validate(value: string): void;
+    validate(): void;
 }
 /**
  * Field for checkbox based inputs
  */
 declare class CheckboxField extends Field {
-    value?: boolean;
+    value?: "true" | "false" | boolean | null;
     constructor(params: {
+        value?: boolean;
         label: string;
         placeholder: string;
         required?: boolean;
-        errorMessage?: string;
+        error?: string;
     });
-    validate(value: string): void;
-    cast(value?: string): boolean | null;
+    cast(): void;
+    validate(): void;
 }
 
 /**
@@ -95,7 +97,8 @@ declare class Form {
     /**
      * Error message when value is not a number
      */
-    static errorMessages: {
+    get name(): string;
+    static errors: {
         number: string;
         email: string;
         url: string;
@@ -105,21 +108,20 @@ declare class Form {
         min: string;
         max: string;
     };
-    static settings: {
-        strict: boolean;
-        record: boolean;
-    };
     /**
      * @returns an iterable of fields to display on the frontend
      */
-    static fields(): Field[];
+    get fields(): Field[];
     /**
      * @param formData to first validate then parse to the appropiate type for backend logic
      * @returns whether the form was valid, a message if the form was invalid, and the data if the form was valid
      */
-    static consume<Type>(formData: FormData): {
-        data?: Type;
-        errorMessage?: string;
+    consume(formData: FormData, params?: {
+        record: boolean;
+    }): {
+        valid: boolean;
+        values: Array<any>;
+        errors: Array<string>;
     };
 }
 

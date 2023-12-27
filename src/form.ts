@@ -1,4 +1,6 @@
+import { prototype } from "events";
 import { Field, FieldError } from "./fields";
+import Logger from "./logger";
 
 /**
  * Class for creating a custom form
@@ -7,79 +9,81 @@ export class Form {
   /**
    * Error message when value is not a number
    */
-  static errorMessages = {
+  get name() {
+    return this.constructor.name;
+  }
+
+  static errors = {
     number: "Value is not a valid number",
     email: "Value is not a valid email address",
     url: "Value is not valid url",
     checkbox: "Value is not true or false",
-
     required: "Field is required",
     maxLength: "Value exceeds max length",
     min: "Value is smaller than minimum value",
     max: "Value is bigger than maximum value",
   };
 
-  static settings: {
-    strict: boolean;
-    record: boolean;
-  } = {
-    strict: false,
-    record: false,
-  };
-
   /**
    * @returns an iterable of fields to display on the frontend
    */
-  static fields(): Field[] {
-    const names: Array<string> = Object.keys(this);
-    const fields: Array<Field> = Object.values(this);
-
-    for (let i = 0; i < names.length; i++) {
-      const name = names[i];
-      const field = fields[i];
-
-      if (name && field) {
-        field.name = name;
-        fields[i] = field;
-      }
-    }
-
-    return fields;
+  get fields(): Field[] {
+    return Object.values(this);
   }
 
   /**
    * @param formData to first validate then parse to the appropiate type for backend logic
    * @returns whether the form was valid, a message if the form was invalid, and the data if the form was valid
    */
-  static consume<Type>(formData: FormData): {
-    data?: Type;
-    errorMessage?: string;
+  consume(
+    formData: FormData,
+    params?: {
+      record: boolean;
+    }
+  ): {
+    valid: boolean;
+    values: Array<any>;
+    errors: Array<string>;
   } {
-    const names: Array<string> = Object.keys(this);
-    const fields: Array<Field> = Object.values(this);
-    const data: Record<string, any> = {};
+    const names = Object.keys(this);
+    const fields = Object.values(this);
+    const errors: Array<string> = [];
 
-    for (let i = 0; i < fields.length; i++) {
-      const name = names[i];
-      const field = fields[i];
+    fields.forEach((field: Field, index: number) => {
+      const name = names[index];
+      if (name) {
+        if (name === "name")
+          throw new Error(
+            "name is a reserved property. Use _name or something else."
+          );
 
-      if (name && field) {
+        field.value = formData.get(name) || field.value;
+
         try {
-          const value = formData.get(name);
-          field.validate(value as string);
-          data[name] = field.cast(value as string);
-          field.value = field.cast(value as string);
+          field.validate();
         } catch (e: unknown) {
-          const fieldError = e as FieldError;
-          return {
-            errorMessage: fieldError.message,
-          };
+          const fieldError: FieldError = e as FieldError;
+          errors.push(fieldError.message);
         }
       }
+    });
+
+    if (errors.length && params?.record) {
+      Logger.record(this.name, errors);
     }
 
-    return {
-      data: data as Type,
-    };
+    if (errors.length) {
+      return {
+        valid: false,
+        errors: errors,
+        values: [],
+      };
+    } else {
+      return {
+        valid: true,
+        errors: [],
+        values: fields.map((field) => field.value),
+      };
+    }
   }
 }
