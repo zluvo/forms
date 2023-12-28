@@ -1,4 +1,5 @@
 import { Form } from "./form";
+import crypto from "crypto";
 
 const types = Object.freeze({
   text: "text",
@@ -94,7 +95,9 @@ export class TextField extends Field {
   }
 
   cast() {
-    this.value = this.value || null;
+    if (this.value === undefined) {
+      this.value = null;
+    }
   }
 
   validate(): void {
@@ -143,19 +146,23 @@ export class NumberField extends Field {
   }
 
   cast(): void {
-    this.value = this.value ? Number(this.value) : null;
+    if (this.value === undefined) {
+      this.value = null;
+    } else {
+      this.value = Number(this.value);
+    }
   }
 
   validate(): void {
     this.cast();
 
     if (this.required && !this.value) {
-      throw new FieldError(this.error || Form.errors.number);
+      throw new FieldError(this.error || Form.errors.required);
     }
     this.value = this.value as number;
-    if (this.min && this.value < this.min) {
+    if (this.min !== undefined && this.value < this.min) {
       throw new FieldError(this.error || Form.errors.min);
-    } else if (this.max && this.value > this.max) {
+    } else if (this.max !== undefined && this.value > this.max) {
       throw new FieldError(this.error || Form.errors.max);
     }
   }
@@ -245,17 +252,17 @@ export class CheckboxField extends Field {
   }
 
   cast(): void {
-    if (this.value) {
+    if (this.value === undefined) {
+      this.value = null;
+    } else {
       this.value = this.value === "true" ? true : false;
     }
-
-    this.value = null;
   }
 
   validate(): void {
     this.cast();
     if (this.required && !this.value) {
-      throw new FieldError(this.error || Form.errors.checkbox);
+      throw new FieldError(this.error || Form.errors.required);
     }
   }
 }

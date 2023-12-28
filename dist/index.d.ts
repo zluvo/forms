@@ -94,6 +94,10 @@ declare class CheckboxField extends Field {
  * Class for creating a custom form
  */
 declare class Form {
+    crsf: Readonly<{
+        value: string;
+        type: "hidden";
+    }>;
     /**
      * Error message when value is not a number
      */
@@ -116,9 +120,8 @@ declare class Form {
      * @param formData to first validate then parse to the appropiate type for backend logic
      * @returns whether the form was valid, a message if the form was invalid, and the data if the form was valid
      */
-    consume(formData: FormData, params?: {
-        record: boolean;
-    }): {
+    consume(formData: FormData): {
+        secure: boolean;
         valid: boolean;
         values: Array<any>;
         errors: Array<string>;

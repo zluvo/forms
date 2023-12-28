@@ -1,62 +1,49 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined")
-    return require.apply(this, arguments);
-  throw new Error('Dynamic require of "' + x + '" is not supported');
-});
 var __publicField = (obj, key, value) => {
   __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
   return value;
 };
 
-// src/logger.ts
-import path from "path";
-var Logger = class {
-  static record(formName, errors) {
-    const config = __require(path.join(process.cwd(), "package.json"));
-    console.log({
-      time: new Date(),
-      project: {
-        name: config.name,
-        version: config.version
-      },
-      form: formName,
-      errors
-    });
-    if (process.env.ZLUVO_TOKEN) {
-      fetch("http://localhost:3000/api/record", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.ZLUVO_TOKEN}`
-        },
-        body: JSON.stringify({
-          time: new Date(),
-          project: {
-            name: config.name,
-            version: config.version
-          },
-          form: formName,
-          errors
-        })
-      });
+// src/security.ts
+import crypto from "crypto";
+var Security = class {
+  static hash(payload) {
+    if (!process.env.ZLUVO_CSRF) {
+      throw new Error("process.env.ZLUVO_CSRF is not defined");
     }
+    return crypto.createHmac("sha256", `secret:${process.env.ZLUVO_CSRF}`).update(payload).digest("hex");
+  }
+  static generate() {
+    const payload = Buffer.from(crypto.randomUUID()).toString("base64");
+    return `${payload}.${this.hash(payload)}`;
+  }
+  static valid(value) {
+    const keyParts = value.split(".");
+    if (keyParts[0] && keyParts[1]) {
+      return this.hash(keyParts[0]) === keyParts[1];
+    }
+    return false;
   }
 };
 
 // src/form.ts
 var Form = class {
+  crsf = Object.freeze({
+    value: Security.generate(),
+    type: "hidden"
+  });
   get name() {
     return this.constructor.name;
   }
   get fields() {
     return Object.values(this);
   }
-  consume(formData, params) {
-    const names = Object.keys(this);
-    const fields = Object.values(this);
+  consume(formData) {
+    const crsf = formData.get("crsf");
+    const secure = crsf ? Security.valid(crsf) : false;
+    const names = Object.keys(this).slice(1, -1);
+    const fields = this.fields.slice(1, -1);
     const errors = [];
     fields.forEach((field, index) => {
       const name = names[index];
@@ -74,17 +61,16 @@ var Form = class {
         }
       }
     });
-    if (errors.length && params?.record) {
-      Logger.record(this.name, errors);
-    }
     if (errors.length) {
       return {
+        secure,
         valid: false,
         errors,
         values: []
       };
     } else {
       return {
+        secure,
         valid: true,
         errors: [],
         values: fields.map((field) => field.value)
@@ -156,7 +142,9 @@ var TextField = class extends Field {
     this.value = params.value;
   }
   cast() {
-    this.value = this.value || null;
+    if (this.value === void 0) {
+      this.value = null;
+    }
   }
   validate() {
     this.cast();
@@ -184,17 +172,21 @@ var NumberField = class extends Field {
     this.value = params.value;
   }
   cast() {
-    this.value = this.value ? Number(this.value) : null;
+    if (this.value === void 0) {
+      this.value = null;
+    } else {
+      this.value = Number(this.value);
+    }
   }
   validate() {
     this.cast();
     if (this.required && !this.value) {
-      throw new FieldError(this.error || Form.errors.number);
+      throw new FieldError(this.error || Form.errors.required);
     }
     this.value = this.value;
-    if (this.min && this.value < this.min) {
+    if (this.min !== void 0 && this.value < this.min) {
       throw new FieldError(this.error || Form.errors.min);
-    } else if (this.max && this.value > this.max) {
+    } else if (this.max !== void 0 && this.value > this.max) {
       throw new FieldError(this.error || Form.errors.max);
     }
   }
@@ -244,15 +236,16 @@ var CheckboxField = class extends Field {
     this.value = params.value;
   }
   cast() {
-    if (this.value) {
+    if (this.value === void 0) {
+      this.value = null;
+    } else {
       this.value = this.value === "true" ? true : false;
     }
-    this.value = null;
   }
   validate() {
     this.cast();
     if (this.required && !this.value) {
-      throw new FieldError(this.error || Form.errors.checkbox);
+      throw new FieldError(this.error || Form.errors.required);
     }
   }
 };

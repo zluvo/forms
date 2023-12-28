@@ -1,11 +1,15 @@
-import { prototype } from "events";
 import { Field, FieldError } from "./fields";
 import Logger from "./logger";
+import Security from "./security";
 
 /**
  * Class for creating a custom form
  */
 export class Form {
+  crsf = Object.freeze({
+    value: Security.generate(),
+    type: "hidden",
+  });
   /**
    * Error message when value is not a number
    */
@@ -36,26 +40,30 @@ export class Form {
    * @returns whether the form was valid, a message if the form was invalid, and the data if the form was valid
    */
   consume(
-    formData: FormData,
-    params?: {
-      record: boolean;
-    }
+    formData: FormData
+    // params?: {
+    //   record: boolean;
+    // }
   ): {
+    secure: boolean;
     valid: boolean;
     values: Array<any>;
     errors: Array<string>;
   } {
-    const names = Object.keys(this);
-    const fields = Object.values(this);
+    const crsf = formData.get("crsf");
+    const secure = crsf ? Security.valid(crsf as string) : false;
+
+    const names = Object.keys(this).slice(1, -1);
+    const fields = this.fields.slice(1, -1);
     const errors: Array<string> = [];
 
     fields.forEach((field: Field, index: number) => {
       const name = names[index];
       if (name) {
-        if (name === "name")
-          throw new Error(
-            "name is a reserved property. Use _name or something else."
-          );
+        // if (name === "name")
+        //   throw new Error(
+        //     "name is a reserved property. Use _name or something else."
+        //   );
 
         field.value = formData.get(name) || field.value;
 
@@ -68,18 +76,20 @@ export class Form {
       }
     });
 
-    if (errors.length && params?.record) {
-      Logger.record(this.name, errors);
-    }
+    // if (errors.length && params?.record) {
+    //   Logger.record(this.name, errors);
+    // }
 
     if (errors.length) {
       return {
+        secure: secure,
         valid: false,
         errors: errors,
         values: [],
       };
     } else {
       return {
+        secure: secure,
         valid: true,
         errors: [],
         values: fields.map((field) => field.value),
