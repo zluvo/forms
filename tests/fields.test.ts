@@ -98,15 +98,6 @@ test("CheckboxField type validates", () => {
   expect(() => checkboxField.validate()).toThrow(Form.errors.required);
 });
 
-test("something", () => {
-  class TestForm extends Form {}
-  const testForm = new TestForm();
-  console.log(testForm.fields);
-  const formData = new FormData();
-  formData.append("crsf", testForm.crsf.value);
-  console.log(testForm.consume(formData));
-});
-
 test(`CheckboxField promotes ${undefined} to ${null}`, () => {
   const checkboxField = new CheckboxField({
     label: "Enable",
