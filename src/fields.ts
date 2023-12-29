@@ -1,5 +1,4 @@
 import { Form } from "./form";
-import crypto from "crypto";
 
 const types = Object.freeze({
   text: "text",

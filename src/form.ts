@@ -1,5 +1,5 @@
 import { Field, FieldError } from "./fields";
-import Logger from "./logger";
+// import Logger from "./logger";
 import Security from "./security";
 
 /**
@@ -53,8 +53,8 @@ export class Form {
     const crsf = formData.get("crsf");
     const secure = crsf ? Security.valid(crsf as string) : false;
 
-    const names = Object.keys(this).slice(1, -1);
-    const fields = this.fields.slice(1, -1);
+    const names = Object.keys(this).slice(1);
+    const fields = this.fields.slice(1);
     const errors: Array<string> = [];
 
     fields.forEach((field: Field, index: number) => {

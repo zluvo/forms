@@ -81,16 +81,13 @@ var Form = class {
   consume(formData) {
     const crsf = formData.get("crsf");
     const secure = crsf ? Security.valid(crsf) : false;
-    const names = Object.keys(this).slice(1, -1);
-    const fields = this.fields.slice(1, -1);
+    const names = Object.keys(this).slice(1);
+    const fields = this.fields.slice(1);
+    console.log(fields);
     const errors = [];
     fields.forEach((field, index) => {
       const name = names[index];
       if (name) {
-        if (name === "name")
-          throw new Error(
-            "name is a reserved property. Use _name or something else."
-          );
         field.value = formData.get(name) || field.value;
         try {
           field.validate();

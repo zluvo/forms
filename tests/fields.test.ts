@@ -1,12 +1,19 @@
 const { NumberField, TextField, CheckboxField, Form } = require("../dist");
+const crypto = require("crypto");
 
-// TextField tests
+beforeAll(() => {
+  process.env = Object.assign(process.env, {
+    ZLUVO_CSRF: crypto.randomUUID(),
+  });
+});
+
 test("TextField required validates", () => {
   const textField = new TextField({
     label: "Name",
     placeholder: "Name",
     required: true,
   });
+
   textField.value = "";
   expect(() => textField.validate()).toThrow(Form.errors.required);
   textField.value = null;
@@ -21,6 +28,7 @@ test(`TextField promotes ${undefined} to ${null}`, () => {
     placeholder: "Name",
     required: true,
   });
+
   textField.cast();
   expect(textField.value).toBe(null);
 });
@@ -31,6 +39,7 @@ test("NumberField required validates", () => {
     placeholder: "Age",
     required: true,
   });
+
   numberField.value = undefined;
   expect(() => numberField.validate()).toThrow(Form.errors.required);
   numberField.value = null;
@@ -43,6 +52,7 @@ test("NumberField type validates", () => {
     placeholder: "Age",
     required: true,
   });
+
   numberField.value = "asdf";
   expect(() => numberField.validate()).toThrow(Form.errors.required);
 });
@@ -53,6 +63,7 @@ test("NumberField min validates", () => {
     placeholder: "Age",
     min: 2,
   });
+
   numberField.value = 1;
   expect(() => numberField.validate()).toThrow(Form.errors.min);
 });
@@ -63,6 +74,7 @@ test("NumberField max validates", () => {
     placeholder: "Age",
     max: 2,
   });
+
   numberField.value = 3;
   expect(() => numberField.validate()).toThrow(Form.errors.max);
 });
@@ -72,6 +84,7 @@ test(`NumberField promotes ${undefined} to ${null}`, () => {
     label: "Age",
     placeholder: "Age",
   });
+
   numberField.cast();
   expect(numberField.value).toBe(null);
 });
@@ -82,6 +95,7 @@ test("CheckboxField required validates", () => {
     placeholder: "Enable",
     required: true,
   });
+
   checkboxField.value = null;
   expect(() => checkboxField.validate()).toThrow(Form.errors.required);
   checkboxField.value = undefined;
@@ -94,6 +108,7 @@ test("CheckboxField type validates", () => {
     placeholder: "Enable",
     required: true,
   });
+
   checkboxField.value = "asdf";
   expect(() => checkboxField.validate()).toThrow(Form.errors.required);
 });
@@ -103,6 +118,7 @@ test(`CheckboxField promotes ${undefined} to ${null}`, () => {
     label: "Enable",
     placeholder: "Enable",
   });
+
   checkboxField.cast();
   expect(checkboxField.value).toBe(null);
 });
