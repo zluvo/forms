@@ -1,131 +1,168 @@
-declare class FieldError extends Error {
-    constructor(message: string);
-}
-declare abstract class Field {
-    label: string;
-    type: string;
-    placeholder: string;
-    value?: unknown;
-    maxlength?: number;
-    min?: number;
-    max?: number;
-    required?: boolean;
-    error?: string;
-    constructor(label: string, type: string, placeholder: string, maxlength?: number, min?: number, max?: number, required?: boolean, error?: string);
-    abstract cast(): void;
-    abstract validate(): void;
-}
-/**
- * Field for text based inputs
- */
-declare class TextField extends Field {
-    value?: string | null;
-    constructor(params: {
-        value?: string;
-        label: string;
-        placeholder: string;
-        maxlength?: number;
-        required?: boolean;
-        error?: string;
-    });
-    cast(): void;
-    validate(): void;
-}
-/**
- * Field for number based inputs
- */
-declare class NumberField extends Field {
-    value?: number | null;
-    constructor(params: {
-        value?: number;
-        label: string;
-        placeholder: string;
-        min?: number;
-        max?: number;
-        required?: boolean;
-        error?: string;
-    });
-    cast(): void;
-    validate(): void;
-}
-/**
- * Field for textarea based inputs
- */
-declare class TextAreaField extends TextField {
-    type: "textarea";
-}
-/**
- * Field for email based inputs
- */
-declare class EmailField extends TextField {
-    type: "email";
-    validate(): void;
-}
-/**
- * Field for password based inputs
- */
-declare class PasswordField extends TextField {
-    type: "password";
-}
-/**
- * Field for url based inputs
- */
-declare class UrlField extends TextField {
-    type: "url";
-    validate(): void;
-}
-/**
- * Field for checkbox based inputs
- */
-declare class CheckboxField extends Field {
-    value?: "true" | "false" | boolean | null;
-    constructor(params: {
-        value?: boolean;
-        label: string;
-        placeholder: string;
-        required?: boolean;
-        error?: string;
-    });
-    cast(): void;
-    validate(): void;
-}
+import { z } from 'zod';
 
-/**
- * Class for creating a custom form
- */
-declare class Form {
-    crsf: Readonly<{
-        value: string;
-        type: "hidden";
-    }>;
+type Field = {
+    label: string;
+    placeholder: string;
+    type: string;
+    value: number | string | boolean;
+    defaultValidation: z.ZodString | z.ZodNumber | z.ZodEffects<z.ZodString | z.ZodNumber>;
+    validation?: z.ZodAny;
+};
+declare class field {
     /**
-     * Error message when value is not a number
+     * text input
      */
-    get name(): string;
-    static errors: {
-        number: string;
-        email: string;
-        url: string;
-        checkbox: string;
-        required: string;
-        maxLength: string;
-        min: string;
-        max: string;
+    static text(params: {
+        label: string;
+        placeholder: string;
+        value: string;
+        validation?: z.ZodString;
+    }): {
+        defaultValidation: z.ZodString;
+        type: string;
+        label: string;
+        placeholder: string;
+        value: string;
+        validation?: z.ZodString | undefined;
     };
     /**
-     * @returns an iterable of fields to display on the frontend
+     * number input
+     */
+    static number(params: {
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodNumber;
+    }): {
+        defaultValidation: z.ZodNumber;
+        type: string;
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodNumber | undefined;
+    };
+    /**
+     * textarea input
+     */
+    static textArea(params: {
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString;
+    }): {
+        defaultValidation: z.ZodString;
+        type: string;
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString | undefined;
+    };
+    /**
+     * email input
+     */
+    static email(params: {
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString;
+    }): {
+        defaultValidation: z.ZodString;
+        type: string;
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString | undefined;
+    };
+    /**
+     * password input
+     */
+    static password(params: {
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString;
+    }): {
+        defaultValidation: z.ZodString;
+        type: string;
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString | undefined;
+    };
+    /**
+     * telephone input
+     */
+    static telephone(params: {
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString;
+    }): {
+        defaultValidation: z.ZodEffects<z.ZodString, string, string>;
+        type: string;
+        label: string;
+        placeholder: string;
+        value: number;
+        validation?: z.ZodString | undefined;
+    };
+}
+
+type Fields = {
+    [name: string]: Field;
+};
+declare class form {
+    private _fields;
+    private _names;
+    private _crsfOn;
+    constructor(args?: {
+        crsf: boolean;
+    });
+    /**
+     * returns a generated crsf token to ensure secure submissions
+     */
+    get crsf(): {
+        value: string;
+        type: string;
+    };
+    /**
+     * names of each field added to the class
+     */
+    private get names();
+    private set names(value);
+    /**
+     * returns every field for this form to be embedded into your UI
      */
     get fields(): Field[];
+    private set fields(value);
     /**
-     * @param formData to first validate then parse to the appropiate type for backend logic
-     * @returns whether the form was valid, a message if the form was invalid, and the data if the form was valid
+     * creates an instance of a class
+     * @param fields
+     * @returns
      */
-    consume(formData: FormData): {
+    static create(fields: Fields): form;
+    /**
+     * called within process() to handle any backend logic
+     * @param args
+     */
+    handleSubmission(args: {
+        [name: string]: any;
+    }): void;
+    /**
+     * process a form given FormData object
+     * @param formData
+     * @param args
+     * @returns
+     */
+    process(formData: FormData, args?: {
+        [name: string]: any;
+    }): Promise<{
         secure: boolean;
         valid: boolean;
-        values: Array<any>;
-        errors: Array<string>;
-    };
+        errors: string[];
+        values: (number | boolean | string)[];
+    }>;
 }
 
-export { CheckboxField, EmailField, Field, FieldError, Form, NumberField, PasswordField, TextAreaField, TextField, UrlField };
+declare const validator: typeof z;
+
+export { Field, Fields, field, form, validator };

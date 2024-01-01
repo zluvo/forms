@@ -5,7 +5,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -19,42 +18,98 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
-};
 
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
-  CheckboxField: () => CheckboxField,
-  EmailField: () => EmailField,
-  Field: () => Field,
-  FieldError: () => FieldError,
-  Form: () => Form,
-  NumberField: () => NumberField,
-  PasswordField: () => PasswordField,
-  TextAreaField: () => TextAreaField,
-  TextField: () => TextField,
-  UrlField: () => UrlField
+  field: () => field,
+  form: () => form,
+  validator: () => validator
 });
 module.exports = __toCommonJS(src_exports);
 
+// src/validator.ts
+var import_zod = require("zod");
+var validator = import_zod.z;
+
+// src/field.ts
+var field = class {
+  /**
+   * text input
+   */
+  static text(params) {
+    return { ...params, defaultValidation: validator.string(), type: "text" };
+  }
+  /**
+   * number input
+   */
+  static number(params) {
+    return {
+      ...params,
+      defaultValidation: validator.coerce.number(),
+      type: "number"
+    };
+  }
+  /**
+   * textarea input
+   */
+  static textArea(params) {
+    return {
+      ...params,
+      defaultValidation: validator.string(),
+      type: "textarea"
+    };
+  }
+  /**
+   * email input
+   */
+  static email(params) {
+    return {
+      ...params,
+      defaultValidation: validator.string().email(),
+      type: "email"
+    };
+  }
+  /**
+   * password input
+   */
+  static password(params) {
+    return {
+      ...params,
+      defaultValidation: validator.string(),
+      type: "password"
+    };
+  }
+  /**
+   * telephone input
+   */
+  static telephone(params) {
+    return {
+      ...params,
+      defaultValidation: validator.string().refine((data) => /^\d{3}-\d{3}-\d{4}$/.test(data), {
+        message: "Invalid phone number format."
+      }),
+      type: "tel"
+    };
+  }
+};
+
 // src/security.ts
 var import_crypto = __toESM(require("crypto"));
-var Security = class {
+var security = class {
   static hash(payload) {
-    if (!process.env.ZLUVO_CSRF) {
-      throw new Error("process.env.ZLUVO_CSRF is not defined");
-    }
-    return import_crypto.default.createHmac("sha256", `secret:${process.env.ZLUVO_CSRF}`).update(payload).digest("hex");
+    return import_crypto.default.createHmac("sha256", `secret:${process.env.ZLUVO_CSRF || ""}`).update(payload).digest("hex");
   }
   static generate() {
-    const payload = Buffer.from(import_crypto.default.randomUUID()).toString("base64");
+    const payload = import_crypto.default.randomBytes(10).toString("hex");
     return `${payload}.${this.hash(payload)}`;
   }
   static valid(value) {
@@ -67,234 +122,128 @@ var Security = class {
 };
 
 // src/form.ts
-var Form = class {
-  crsf = Object.freeze({
-    value: Security.generate(),
-    type: "hidden"
-  });
-  get name() {
-    return this.constructor.name;
+var form = class {
+  _fields = [];
+  _names = [];
+  _crsfOn = false;
+  constructor(args) {
+    if (args?.crsf)
+      this._crsfOn = true;
   }
+  /**
+   * returns a generated crsf token to ensure secure submissions
+   */
+  get crsf() {
+    if (!this._crsfOn)
+      throw new Error("crsf is not configured for this form");
+    return {
+      value: security.generate(),
+      type: "hidden"
+    };
+  }
+  /**
+   * names of each field added to the class
+   */
+  get names() {
+    if (!this._names.length) {
+      this._names = Object.keys(this).slice(3);
+    }
+    return this._names;
+  }
+  set names(value) {
+    this._names = value;
+  }
+  /**
+   * returns every field for this form to be embedded into your UI
+   */
   get fields() {
-    return Object.values(this);
+    if (!this._fields.length) {
+      this._fields = Object.values(this).slice(3);
+    }
+    return this._fields;
   }
-  consume(formData) {
-    const crsf = formData.get("crsf");
-    const secure = crsf ? Security.valid(crsf) : false;
-    const names = Object.keys(this).slice(1);
-    const fields = this.fields.slice(1);
-    console.log(fields);
+  set fields(value) {
+    this._fields = value;
+  }
+  /**
+   * creates an instance of a class
+   * @param fields
+   * @returns
+   */
+  static create(fields) {
+    const temp = new form();
+    temp.fields = Object.values(fields);
+    temp.names = Object.keys(fields);
+    return Object.seal(temp);
+  }
+  /**
+   * called within process() to handle any backend logic
+   * @param args
+   */
+  handleSubmission(args) {
+  }
+  /**
+   * process a form given FormData object
+   * @param formData
+   * @param args
+   * @returns
+   */
+  async process(formData, args) {
+    const values = [];
     const errors = [];
-    fields.forEach((field, index) => {
-      const name = names[index];
-      if (name) {
-        field.value = formData.get(name) || field.value;
-        try {
-          field.validate();
-        } catch (e) {
-          const fieldError = e;
-          errors.push(fieldError.message);
+    const token = formData.get("crsf");
+    if (this._crsfOn && !token) {
+      throw new Error("crsf token is not being passed to the form");
+    }
+    const secure = security.valid(token);
+    if (!secure) {
+      errors.push("Invalid crsf token");
+    }
+    await Promise.all(
+      this.fields.map(async (field2, i) => {
+        const name = this.names[i];
+        if (name) {
+          const value = formData.get(name) || field2.value;
+          const result = await field2.defaultValidation.safeParseAsync(value);
+          const fieldErrors = /* @__PURE__ */ new Set();
+          if (result.success) {
+            field2.value = result.data;
+          } else {
+            const error = result.error;
+            error.issues.map((issue) => issue.message).forEach((error2) => fieldErrors.add(error2));
+          }
+          if (field2.validation) {
+            const result2 = await field2.validation.safeParseAsync(value);
+            if (result2.success) {
+              field2.value = result2.data;
+            } else {
+              const error = result2.error;
+              error.issues.map((issue) => issue.message).forEach((error2) => fieldErrors.add(error2));
+            }
+          }
+          if (fieldErrors.size) {
+            errors.push(...fieldErrors);
+          } else {
+            values.push(field2.value);
+          }
         }
-      }
-    });
-    if (errors.length) {
-      return {
-        secure,
-        valid: false,
-        errors,
-        values: []
-      };
-    } else {
-      return {
-        secure,
-        valid: true,
-        errors: [],
-        values: fields.map((field) => field.value)
-      };
-    }
-  }
-};
-__publicField(Form, "errors", {
-  number: "Value is not a valid number",
-  email: "Value is not a valid email address",
-  url: "Value is not valid url",
-  checkbox: "Value is not true or false",
-  required: "Field is required",
-  maxLength: "Value exceeds max length",
-  min: "Value is smaller than minimum value",
-  max: "Value is bigger than maximum value"
-});
-
-// src/fields.ts
-var types = Object.freeze({
-  text: "text",
-  tel: "tel",
-  checkbox: "checkbox",
-  email: "email",
-  password: "password",
-  url: "url",
-  number: "number",
-  textarea: "textarea"
-});
-var FieldError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = this.constructor.name;
-  }
-};
-var Field = class {
-  label;
-  type;
-  placeholder;
-  value;
-  maxlength;
-  min;
-  max;
-  required;
-  error;
-  constructor(label, type, placeholder, maxlength, min, max, required, error) {
-    this.label = label;
-    this.type = type;
-    this.placeholder = placeholder;
-    this.maxlength = maxlength;
-    this.min = min;
-    this.max = max;
-    this.required = required;
-    this.error = error;
-  }
-};
-var TextField = class extends Field {
-  constructor(params) {
-    super(
-      params.label,
-      types.text,
-      params.placeholder,
-      params.maxlength,
-      void 0,
-      void 0,
-      params.required,
-      params.error
+      })
     );
-    this.value = params.value;
-  }
-  cast() {
-    if (this.value === void 0) {
-      this.value = null;
+    const valid = errors.length === 0;
+    if (args && valid) {
+      this.handleSubmission(args);
     }
-  }
-  validate() {
-    this.cast();
-    if (this.required && (!this.value || this.value === "")) {
-      throw new FieldError(this.error || Form.errors.required);
-    }
-    this.value = this.value;
-    if (this.maxlength && this.value.length > this.maxlength) {
-      throw new FieldError(this.error || Form.errors.maxLength);
-    }
-  }
-};
-var NumberField = class extends Field {
-  constructor(params) {
-    super(
-      params.label,
-      types.number,
-      params.placeholder,
-      void 0,
-      params.min,
-      params.max,
-      params.required,
-      params.error
-    );
-    this.value = params.value;
-  }
-  cast() {
-    if (this.value === void 0) {
-      this.value = null;
-    } else {
-      this.value = Number(this.value);
-    }
-  }
-  validate() {
-    this.cast();
-    if (this.required && !this.value) {
-      throw new FieldError(this.error || Form.errors.required);
-    }
-    this.value = this.value;
-    if (this.min !== void 0 && this.value < this.min) {
-      throw new FieldError(this.error || Form.errors.min);
-    } else if (this.max !== void 0 && this.value > this.max) {
-      throw new FieldError(this.error || Form.errors.max);
-    }
-  }
-};
-var TextAreaField = class extends TextField {
-  type = types.textarea;
-};
-var EmailField = class extends TextField {
-  type = types.email;
-  validate() {
-    super.validate();
-    this.value = this.value;
-    if (!this.value.match(
-      /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-    )) {
-      throw new FieldError(this.error || Form.errors.email);
-    }
-  }
-};
-var PasswordField = class extends TextField {
-  type = types.password;
-};
-var UrlField = class extends TextField {
-  type = types.url;
-  validate() {
-    super.validate();
-    this.value = this.value;
-    if (!this.value.match(
-      /(?:https?):\/\/(\w+:?\w*)?(\S+)(:\d+)?(\/|\/([\w#!:.?+=&%!\-\/]))?/
-    )) {
-      throw new FieldError(this.error || Form.errors.url);
-    }
-  }
-};
-var CheckboxField = class extends Field {
-  constructor(params) {
-    super(
-      params.label,
-      types.checkbox,
-      params.placeholder,
-      void 0,
-      void 0,
-      void 0,
-      params.required,
-      params.error
-    );
-    this.value = params.value;
-  }
-  cast() {
-    if (this.value === void 0) {
-      this.value = null;
-    } else {
-      this.value = this.value === "true" ? true : false;
-    }
-  }
-  validate() {
-    this.cast();
-    if (this.required && !this.value) {
-      throw new FieldError(this.error || Form.errors.required);
-    }
+    return {
+      secure,
+      valid,
+      errors,
+      values: valid ? values : []
+    };
   }
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  CheckboxField,
-  EmailField,
-  Field,
-  FieldError,
-  Form,
-  NumberField,
-  PasswordField,
-  TextAreaField,
-  TextField,
-  UrlField
+  field,
+  form,
+  validator
 });

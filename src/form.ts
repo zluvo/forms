@@ -1,99 +1,157 @@
-import { Field, FieldError } from "./fields";
-// import Logger from "./logger";
-import Security from "./security";
+import { z } from "zod";
+import type { Field } from "./field";
+import security from "./security";
 
-/**
- * Class for creating a custom form
- */
-export class Form {
-  crsf = Object.freeze({
-    value: Security.generate(),
-    type: "hidden",
-  });
-  /**
-   * Error message when value is not a number
-   */
-  get name() {
-    return this.constructor.name;
-  }
+export type Fields = {
+  [name: string]: Field;
+};
 
-  static errors = {
-    number: "Value is not a valid number",
-    email: "Value is not a valid email address",
-    url: "Value is not valid url",
-    checkbox: "Value is not true or false",
-    required: "Field is required",
-    maxLength: "Value exceeds max length",
-    min: "Value is smaller than minimum value",
-    max: "Value is bigger than maximum value",
-  };
+export class form {
+  private _fields: Field[] = [];
+  private _names: string[] = [];
+  private _crsfOn: Boolean = false;
 
-  /**
-   * @returns an iterable of fields to display on the frontend
-   */
-  get fields(): Field[] {
-    return Object.values(this);
+  constructor(args?: { crsf: boolean }) {
+    if (args?.crsf) this._crsfOn = true;
   }
 
   /**
-   * @param formData to first validate then parse to the appropiate type for backend logic
-   * @returns whether the form was valid, a message if the form was invalid, and the data if the form was valid
+   * returns a generated crsf token to ensure secure submissions
    */
-  consume(
-    formData: FormData
-    // params?: {
-    //   record: boolean;
-    // }
-  ): {
+  get crsf() {
+    if (!this._crsfOn) throw new Error("crsf is not configured for this form");
+
+    return {
+      value: security.generate(),
+      type: "hidden",
+    };
+  }
+
+  /**
+   * names of each field added to the class
+   */
+  private get names() {
+    if (!this._names.length) {
+      this._names = Object.keys(this).slice(3);
+    }
+    return this._names;
+  }
+  private set names(value: string[]) {
+    this._names = value;
+  }
+
+  /**
+   * returns every field for this form to be embedded into your UI
+   */
+  get fields() {
+    if (!this._fields.length) {
+      this._fields = Object.values(this).slice(3);
+    }
+    return this._fields;
+  }
+  private set fields(value: Field[]) {
+    this._fields = value;
+  }
+
+  /**
+   * creates an instance of a class
+   * @param fields
+   * @returns
+   */
+  static create(fields: Fields) {
+    const temp = new form();
+    temp.fields = Object.values(fields);
+    temp.names = Object.keys(fields);
+    return Object.seal(temp);
+  }
+
+  /**
+   * called within process() to handle any backend logic
+   * @param args
+   */
+  handleSubmission(args: { [name: string]: any }) {}
+
+  /**
+   * process a form given FormData object
+   * @param formData
+   * @param args
+   * @returns
+   */
+  async process(
+    formData: FormData,
+    args?: { [name: string]: any }
+  ): Promise<{
     secure: boolean;
     valid: boolean;
-    values: Array<any>;
-    errors: Array<string>;
-  } {
-    const crsf = formData.get("crsf");
-    const secure = crsf ? Security.valid(crsf as string) : false;
+    errors: string[];
+    values: (number | boolean | string)[];
+  }> {
+    const values: (number | boolean | string)[] = [];
+    const errors: string[] = [];
 
-    const names = Object.keys(this).slice(1);
-    const fields = this.fields.slice(1);
-    const errors: Array<string> = [];
+    const token = formData.get("crsf");
 
-    fields.forEach((field: Field, index: number) => {
-      const name = names[index];
-      if (name) {
-        // if (name === "name")
-        //   throw new Error(
-        //     "name is a reserved property. Use _name or something else."
-        //   );
-
-        field.value = formData.get(name) || field.value;
-
-        try {
-          field.validate();
-        } catch (e: unknown) {
-          const fieldError: FieldError = e as FieldError;
-          errors.push(fieldError.message);
-        }
-      }
-    });
-
-    // if (errors.length && params?.record) {
-    //   Logger.record(this.name, errors);
-    // }
-
-    if (errors.length) {
-      return {
-        secure: secure,
-        valid: false,
-        errors: errors,
-        values: [],
-      };
-    } else {
-      return {
-        secure: secure,
-        valid: true,
-        errors: [],
-        values: fields.map((field) => field.value),
-      };
+    if (this._crsfOn && !token) {
+      throw new Error("crsf token is not being passed to the form");
     }
+
+    const secure: boolean = security.valid(token as string);
+    if (!secure) {
+      errors.push("Invalid crsf token");
+    }
+
+    // Use Promise.all to parallelize field processing
+    await Promise.all(
+      this.fields.map(async (field: Field, i: number) => {
+        const name = this.names[i];
+        if (name) {
+          const value = formData.get(name) || field.value;
+          const result = await field.defaultValidation.safeParseAsync(value);
+          const fieldErrors = new Set<string>();
+
+          // default validation
+          if (result.success) {
+            field.value = result.data;
+          } else {
+            const error: z.ZodError = result.error;
+            error.issues
+              .map((issue) => issue.message)
+              .forEach((error) => fieldErrors.add(error));
+          }
+
+          // extra validation
+          if (field.validation) {
+            const result = await field.validation.safeParseAsync(value);
+            if (result.success) {
+              field.value = result.data;
+            } else {
+              const error: z.ZodError = result.error;
+              error.issues
+                .map((issue) => issue.message)
+                .forEach((error) => fieldErrors.add(error));
+            }
+          }
+
+          if (fieldErrors.size) {
+            errors.push(...fieldErrors);
+          } else {
+            values.push(field.value);
+          }
+        }
+      })
+    );
+
+    const valid = errors.length === 0;
+
+    if (args && valid) {
+      this.handleSubmission(args);
+    }
+
+    return {
+      secure: secure,
+      valid: valid,
+      errors: errors,
+      values: valid ? values : [],
+    };
   }
 }

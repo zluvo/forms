@@ -1,19 +1,15 @@
 import crypto from "crypto";
 
-export default class Security {
+export default class security {
   private static hash(payload: string): string {
-    if (!process.env.ZLUVO_CSRF) {
-      throw new Error("process.env.ZLUVO_CSRF is not defined");
-    }
-
     return crypto
-      .createHmac("sha256", `secret:${process.env.ZLUVO_CSRF}`)
+      .createHmac("sha256", `secret:${process.env.ZLUVO_CSRF || ""}`)
       .update(payload)
       .digest("hex");
   }
 
   static generate() {
-    const payload = Buffer.from(crypto.randomUUID()).toString("base64");
+    const payload = crypto.randomBytes(10).toString("hex");
     return `${payload}.${this.hash(payload)}`;
   }
 

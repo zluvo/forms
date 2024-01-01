@@ -5,7 +5,7 @@ type Config = {
   version: string;
 };
 
-export default class Logger {
+export default class logger {
   static record(formName: string, errors: Array<string>) {
     if (!process.env.ZlUVO_TOKEN) {
       throw new Error("process.env.ZLUVO_TOKEN is not defined");
