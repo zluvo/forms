@@ -1,5 +1,11 @@
 # @zluvo/forms
 
+## 0.2.2
+
+### Patch Changes
+
+- ba2f073: Add name attribute to each field in Form.fields
+
 ## 0.2.1
 
 ### Patch Changes
