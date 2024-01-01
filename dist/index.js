@@ -30,8 +30,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
+  Form: () => Form,
   field: () => field,
-  form: () => form,
   validator: () => validator
 });
 module.exports = __toCommonJS(src_exports);
@@ -122,7 +122,7 @@ var security = class {
 };
 
 // src/form.ts
-var form = class {
+var Form = class {
   _fields = [];
   _crsfOn = false;
   constructor(args) {
@@ -162,7 +162,7 @@ var form = class {
    * @returns
    */
   static create(fields) {
-    const temp = new form();
+    const temp = new Form();
     temp.fields = Object.values(fields);
     const names = Object.keys(fields);
     temp.fields.forEach((field2, i) => {
@@ -234,7 +234,7 @@ var form = class {
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  Form,
   field,
-  form,
   validator
 });

@@ -6,7 +6,7 @@ export type Fields = {
   [name: string]: Field;
 };
 
-export class form {
+export class Form {
   private _fields: Field[] = [];
   private _crsfOn: Boolean = false;
 
@@ -49,7 +49,7 @@ export class form {
    * @returns
    */
   static create(fields: Fields) {
-    const temp = new form();
+    const temp = new Form();
     temp.fields = Object.values(fields);
     const names = Object.keys(fields);
     temp.fields.forEach((field: Field, i: number) => {

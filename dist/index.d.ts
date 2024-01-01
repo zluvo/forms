@@ -111,7 +111,7 @@ declare class field {
 type Fields = {
     [name: string]: Field;
 };
-declare class form {
+declare class Form {
     private _fields;
     private _crsfOn;
     constructor(args?: {
@@ -134,7 +134,7 @@ declare class form {
      * @param fields
      * @returns
      */
-    static create(fields: Fields): form;
+    static create(fields: Fields): Form;
     /**
      * called within process() to handle any backend logic
      * @param args
@@ -160,4 +160,4 @@ declare class form {
 
 declare const validator: typeof z;
 
-export { Field, Fields, field, form, validator };
+export { Field, Fields, Form, field, validator };

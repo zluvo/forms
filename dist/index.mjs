@@ -84,7 +84,7 @@ var security = class {
 };
 
 // src/form.ts
-var form = class {
+var Form = class {
   _fields = [];
   _crsfOn = false;
   constructor(args) {
@@ -124,7 +124,7 @@ var form = class {
    * @returns
    */
   static create(fields) {
-    const temp = new form();
+    const temp = new Form();
     temp.fields = Object.values(fields);
     const names = Object.keys(fields);
     temp.fields.forEach((field2, i) => {
@@ -195,7 +195,7 @@ var form = class {
   }
 };
 export {
+  Form,
   field,
-  form,
   validator
 };
