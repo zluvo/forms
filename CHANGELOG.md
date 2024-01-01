@@ -1,5 +1,11 @@
 # @zluvo/forms
 
+## 0.2.1
+
+### Patch Changes
+
+- 9fd09a6: remove src.zip
+
 ## 0.2.0
 
 ### Minor Changes
