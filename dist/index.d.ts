@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 type Field = {
+    name: string;
     label: string;
     placeholder: string;
     type: string;
@@ -112,7 +113,6 @@ type Fields = {
 };
 declare class form {
     private _fields;
-    private _names;
     private _crsfOn;
     constructor(args?: {
         crsf: boolean;
@@ -124,11 +124,6 @@ declare class form {
         value: string;
         type: string;
     };
-    /**
-     * names of each field added to the class
-     */
-    private get names();
-    private set names(value);
     /**
      * returns every field for this form to be embedded into your UI
      */

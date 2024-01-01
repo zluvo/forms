@@ -124,7 +124,6 @@ var security = class {
 // src/form.ts
 var form = class {
   _fields = [];
-  _names = [];
   _crsfOn = false;
   constructor(args) {
     if (args?.crsf)
@@ -142,23 +141,15 @@ var form = class {
     };
   }
   /**
-   * names of each field added to the class
-   */
-  get names() {
-    if (!this._names.length) {
-      this._names = Object.keys(this).slice(3);
-    }
-    return this._names;
-  }
-  set names(value) {
-    this._names = value;
-  }
-  /**
    * returns every field for this form to be embedded into your UI
    */
   get fields() {
     if (!this._fields.length) {
-      this._fields = Object.values(this).slice(3);
+      this._fields = Object.values(this).slice(2);
+      const names = Object.keys(this).slice(2);
+      this._fields.forEach((field2, i) => {
+        field2.name = names[i];
+      });
     }
     return this._fields;
   }
@@ -173,7 +164,10 @@ var form = class {
   static create(fields) {
     const temp = new form();
     temp.fields = Object.values(fields);
-    temp.names = Object.keys(fields);
+    const names = Object.keys(fields);
+    temp.fields.forEach((field2, i) => {
+      field2.name = names[i];
+    });
     return Object.seal(temp);
   }
   /**
@@ -201,31 +195,28 @@ var form = class {
     }
     await Promise.all(
       this.fields.map(async (field2, i) => {
-        const name = this.names[i];
-        if (name) {
-          const value = formData.get(name) || field2.value;
-          const result = await field2.defaultValidation.safeParseAsync(value);
-          const fieldErrors = /* @__PURE__ */ new Set();
-          if (result.success) {
-            field2.value = result.data;
+        const value = formData.get(field2.name) || field2.value;
+        const result = await field2.defaultValidation.safeParseAsync(value);
+        const fieldErrors = /* @__PURE__ */ new Set();
+        if (result.success) {
+          field2.value = result.data;
+        } else {
+          const error = result.error;
+          error.issues.map((issue) => issue.message).forEach((error2) => fieldErrors.add(error2));
+        }
+        if (field2.validation) {
+          const result2 = await field2.validation.safeParseAsync(value);
+          if (result2.success) {
+            field2.value = result2.data;
           } else {
-            const error = result.error;
+            const error = result2.error;
             error.issues.map((issue) => issue.message).forEach((error2) => fieldErrors.add(error2));
           }
-          if (field2.validation) {
-            const result2 = await field2.validation.safeParseAsync(value);
-            if (result2.success) {
-              field2.value = result2.data;
-            } else {
-              const error = result2.error;
-              error.issues.map((issue) => issue.message).forEach((error2) => fieldErrors.add(error2));
-            }
-          }
-          if (fieldErrors.size) {
-            errors.push(...fieldErrors);
-          } else {
-            values.push(field2.value);
-          }
+        }
+        if (fieldErrors.size) {
+          errors.push(...fieldErrors);
+        } else {
+          values.push(field2.value);
         }
       })
     );

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { validator } from "./validator";
 
 export type Field = {
+  name: string;
   label: string;
   placeholder: string;
   type: string;

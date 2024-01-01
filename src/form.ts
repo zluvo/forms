@@ -8,7 +8,6 @@ export type Fields = {
 
 export class form {
   private _fields: Field[] = [];
-  private _names: string[] = [];
   private _crsfOn: Boolean = false;
 
   constructor(args?: { crsf: boolean }) {
@@ -28,24 +27,15 @@ export class form {
   }
 
   /**
-   * names of each field added to the class
-   */
-  private get names() {
-    if (!this._names.length) {
-      this._names = Object.keys(this).slice(3);
-    }
-    return this._names;
-  }
-  private set names(value: string[]) {
-    this._names = value;
-  }
-
-  /**
    * returns every field for this form to be embedded into your UI
    */
   get fields() {
     if (!this._fields.length) {
-      this._fields = Object.values(this).slice(3);
+      this._fields = Object.values(this).slice(2);
+      const names = Object.keys(this).slice(2);
+      this._fields.forEach((field: Field, i: number) => {
+        field.name = names[i] as string;
+      });
     }
     return this._fields;
   }
@@ -61,7 +51,10 @@ export class form {
   static create(fields: Fields) {
     const temp = new form();
     temp.fields = Object.values(fields);
-    temp.names = Object.keys(fields);
+    const names = Object.keys(fields);
+    temp.fields.forEach((field: Field, i: number) => {
+      field.name = names[i] as string;
+    });
     return Object.seal(temp);
   }
 
@@ -103,13 +96,23 @@ export class form {
     // Use Promise.all to parallelize field processing
     await Promise.all(
       this.fields.map(async (field: Field, i: number) => {
-        const name = this.names[i];
-        if (name) {
-          const value = formData.get(name) || field.value;
-          const result = await field.defaultValidation.safeParseAsync(value);
-          const fieldErrors = new Set<string>();
+        const value = formData.get(field.name) || field.value;
+        const result = await field.defaultValidation.safeParseAsync(value);
+        const fieldErrors = new Set<string>();
 
-          // default validation
+        // default validation
+        if (result.success) {
+          field.value = result.data;
+        } else {
+          const error: z.ZodError = result.error;
+          error.issues
+            .map((issue) => issue.message)
+            .forEach((error) => fieldErrors.add(error));
+        }
+
+        // extra validation
+        if (field.validation) {
+          const result = await field.validation.safeParseAsync(value);
           if (result.success) {
             field.value = result.data;
           } else {
@@ -118,25 +121,12 @@ export class form {
               .map((issue) => issue.message)
               .forEach((error) => fieldErrors.add(error));
           }
+        }
 
-          // extra validation
-          if (field.validation) {
-            const result = await field.validation.safeParseAsync(value);
-            if (result.success) {
-              field.value = result.data;
-            } else {
-              const error: z.ZodError = result.error;
-              error.issues
-                .map((issue) => issue.message)
-                .forEach((error) => fieldErrors.add(error));
-            }
-          }
-
-          if (fieldErrors.size) {
-            errors.push(...fieldErrors);
-          } else {
-            values.push(field.value);
-          }
+        if (fieldErrors.size) {
+          errors.push(...fieldErrors);
+        } else {
+          values.push(field.value);
         }
       })
     );
