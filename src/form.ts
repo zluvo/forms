@@ -25,15 +25,11 @@ type FormCreateOptions = {
 };
 
 export const form = {
-  create<T extends FieldDefinition>(
-    formName: string,
-    fields: T,
-    options: FormCreateOptions = {}
-  ) {
+  create<T extends FieldDefinition>(formName: string, fields: T) {
     const plugins: Array<(data: FormValues<T>) => Promise<void>> = [];
     let validatedData: FormValues<T>;
 
-    return {
+    return Object.seal({
       name: formName,
       fields: Object.entries(fields).map(([fieldName, fieldConfig]) => {
         if (!fieldConfig.name) {
@@ -75,6 +71,6 @@ export const form = {
           await Promise.all(plugins.map((plugin) => plugin(validatedData)));
         },
       },
-    };
+    });
   },
 };
