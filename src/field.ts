@@ -1,113 +1,130 @@
 import { z } from "zod";
 import { validator } from "./validator";
 
-export type Field = {
+type Field = {
   name: string;
   label: string;
   placeholder: string;
   type: string;
-  value: number | string | boolean;
-  defaultValidation:
-    | z.ZodString
-    | z.ZodNumber
-    | z.ZodEffects<z.ZodString | z.ZodNumber>;
-  validation?: z.ZodAny;
+  validation: z.ZodType<any, any, any>;
 };
 
-export class field {
+export type FieldDefinition = Record<
+  string,
+  {
+    name: string;
+    label: string;
+    placeholder: string;
+    type: string;
+    validation: z.ZodType<any, any, any>;
+  }
+>;
+
+export const field = {
   /**
    * text input
    */
-  static text(params: {
+  text(params: {
+    name?: string;
     label: string;
     placeholder: string;
-    value: string;
+    value?: string;
     validation?: z.ZodString;
   }) {
-    return { ...params, defaultValidation: validator.string(), type: "text" };
-  }
-
+    return {
+      ...params,
+      name: params.name || "",
+      validation: params.validation || validator.string(),
+      type: "text",
+    } satisfies Field;
+  },
   /**
    * number input
    */
-  static number(params: {
+  number(params: {
+    name?: string;
     label: string;
     placeholder: string;
-    value: number;
+    value?: number;
     validation?: z.ZodNumber;
   }) {
     return {
       ...params,
-      defaultValidation: validator.coerce.number(),
+      name: params.name || "",
+      validation: params.validation || validator.coerce.number(),
       type: "number",
-    };
-  }
-
+    } satisfies Field;
+  },
   /**
    * textarea input
    */
-  static textArea(params: {
+  textArea(params: {
+    name?: string;
     label: string;
     placeholder: string;
-    value: number;
+    value?: string;
     validation?: z.ZodString;
   }) {
     return {
       ...params,
-      defaultValidation: validator.string(),
+      name: params.name || "",
+      validation: params.validation || validator.string(),
       type: "textarea",
-    };
-  }
-
+    } satisfies Field;
+  },
   /**
    * email input
    */
-  static email(params: {
+  email(params: {
+    name?: string;
     label: string;
     placeholder: string;
-    value: number;
+    value?: string;
     validation?: z.ZodString;
   }) {
     return {
       ...params,
-      defaultValidation: validator.string().email(),
+      name: params.name || "",
+      validation: params.validation || validator.string(),
       type: "email",
-    };
-  }
-
+    } satisfies Field;
+  },
   /**
    * password input
    */
-  static password(params: {
+  password(params: {
+    name?: string;
     label: string;
     placeholder: string;
-    value: number;
+    value?: string;
     validation?: z.ZodString;
   }) {
     return {
       ...params,
-      defaultValidation: validator.string(),
+      name: params.name || "",
+      validation: params.validation || validator.string(),
       type: "password",
-    };
-  }
-
+    } satisfies Field;
+  },
   /**
    * telephone input
    */
-  static telephone(params: {
+  telephone(params: {
+    name?: string;
     label: string;
     placeholder: string;
-    value: number;
+    value?: number;
     validation?: z.ZodString;
   }) {
     return {
       ...params,
-      defaultValidation: validator
-        .string()
-        .refine((data) => /^\d{3}-\d{3}-\d{4}$/.test(data), {
+      name: params.name || "",
+      validation:
+        params.validation ||
+        validator.string().refine((data) => /^\d{3}-\d{3}-\d{4}$/.test(data), {
           message: "Invalid phone number format.",
         }),
       type: "tel",
-    };
-  }
-}
+    } satisfies Field;
+  },
+};

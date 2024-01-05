@@ -1,147 +1,80 @@
-import { z } from "zod";
-import type { Field } from "./field";
-import security from "./security";
+import { z, ZodError } from "zod";
+import { FieldDefinition } from "./field";
 
-export type Fields = {
-  [name: string]: Field;
+// Define a utility type for the form values
+type FormValues<T extends FieldDefinition> = {
+  [K in keyof T]: T[K]["validation"] extends z.ZodType<infer U, any, any>
+    ? U
+    : T[K]["type"] extends "number"
+    ? number
+    : string;
 };
 
-export class Form {
-  private _fields: Field[] = [];
-  private _crsfOn: Boolean = false;
+type ValidationResult<T extends FieldDefinition> =
+  | {
+      success: true;
+      data: FormValues<T>;
+    }
+  | {
+      success: false;
+      error: string;
+    };
 
-  constructor(args?: { crsf: boolean }) {
-    if (args?.crsf) this._crsfOn = true;
-  }
+type FormCreateOptions = {
+  plugins?: Array<() => void>;
+};
 
-  /**
-   * returns a generated crsf token to ensure secure submissions
-   */
-  get crsf() {
-    if (!this._crsfOn) throw new Error("crsf is not configured for this form");
+export const form = {
+  create<T extends FieldDefinition>(
+    formName: string,
+    fields: T,
+    options: FormCreateOptions = {}
+  ) {
+    const plugins: Array<(data: FormValues<T>) => Promise<void>> = [];
+    let validatedData: FormValues<T>;
 
     return {
-      value: security.generate(),
-      type: "hidden",
-    };
-  }
-
-  /**
-   * returns every field for this form to be embedded into your UI
-   */
-  get fields() {
-    if (!this._fields.length) {
-      this._fields = Object.values(this).slice(2);
-      const names = Object.keys(this).slice(2);
-      this._fields.forEach((field: Field, i: number) => {
-        field.name = names[i] as string;
-      });
-    }
-    return this._fields;
-  }
-  private set fields(value: Field[]) {
-    this._fields = value;
-  }
-
-  /**
-   * creates an instance of a class
-   * @param fields
-   * @returns
-   */
-  static create(fields: Fields) {
-    const temp = new Form();
-    temp.fields = Object.values(fields);
-    const names = Object.keys(fields);
-    temp.fields.forEach((field: Field, i: number) => {
-      field.name = names[i] as string;
-    });
-    return Object.seal(temp);
-  }
-
-  /**
-   * called within process() to handle any backend logic
-   * @param args
-   */
-  handleSubmission(args: { [name: string]: any }) {}
-
-  /**
-   * process a form given FormData object
-   * @param formData
-   * @param args
-   * @returns
-   */
-  async process(
-    formData: FormData,
-    args?: { [name: string]: any }
-  ): Promise<{
-    secure: boolean;
-    valid: boolean;
-    errors: string[];
-    values: (number | boolean | string)[];
-  }> {
-    const values: (number | boolean | string)[] = [];
-    const errors: string[] = [];
-
-    const token = formData.get("crsf");
-
-    if (this._crsfOn && !token) {
-      throw new Error("crsf token is not being passed to the form");
-    }
-
-    const secure: boolean = security.valid(token as string);
-    if (!secure) {
-      errors.push("Invalid crsf token");
-    }
-
-    // Use Promise.all to parallelize field processing
-    await Promise.all(
-      this.fields.map(async (field: Field, i: number) => {
-        const value = formData.get(field.name) || field.value;
-        const result = await field.defaultValidation.safeParseAsync(value);
-        const fieldErrors = new Set<string>();
-
-        // default validation
-        if (result.success) {
-          field.value = result.data;
+      name: formName,
+      fields: Object.entries(fields).map(([fieldName, fieldConfig]) => {
+        if (!fieldConfig.name) {
+          return {
+            ...fieldConfig,
+            name: fieldName,
+          };
         } else {
-          const error: z.ZodError = result.error;
-          error.issues
-            .map((issue) => issue.message)
-            .forEach((error) => fieldErrors.add(error));
+          return fieldConfig;
         }
+      }),
+      validate: async (formData: FormData): Promise<ValidationResult<T>> => {
+        try {
+          validatedData = Object.fromEntries(
+            await Promise.all(
+              Object.entries(fields).map(async ([fieldName, fieldConfig]) => {
+                const value = formData.get(fieldName);
 
-        // extra validation
-        if (field.validation) {
-          const result = await field.validation.safeParseAsync(value);
-          if (result.success) {
-            field.value = result.data;
-          } else {
-            const error: z.ZodError = result.error;
-            error.issues
-              .map((issue) => issue.message)
-              .forEach((error) => fieldErrors.add(error));
-          }
+                if (fieldConfig.validation) {
+                  const validatedValue =
+                    await fieldConfig.validation.parseAsync(value);
+                  return [fieldName, validatedValue];
+                }
+
+                return [fieldName, value];
+              })
+            )
+          ) as FormValues<T>;
+          return { success: true, data: validatedData };
+        } catch (error) {
+          return { success: false, error: (error as ZodError).message };
         }
-
-        if (fieldErrors.size) {
-          errors.push(...fieldErrors);
-        } else {
-          values.push(field.value);
-        }
-      })
-    );
-
-    const valid = errors.length === 0;
-
-    if (args && valid) {
-      this.handleSubmission(args);
-    }
-
-    return {
-      secure: secure,
-      valid: valid,
-      errors: errors,
-      values: valid ? values : [],
+      },
+      plugins: {
+        add: (plugin: (data: FormValues<T>) => Promise<void>) => {
+          plugins.push(plugin);
+        },
+        run: async () => {
+          await Promise.all(plugins.map((plugin) => plugin(validatedData)));
+        },
+      },
     };
-  }
-}
+  },
+};
