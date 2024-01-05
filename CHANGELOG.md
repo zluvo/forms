@@ -1,5 +1,11 @@
 # @zluvo/forms
 
+## 0.3.1
+
+### Patch Changes
+
+- d559582: Remove test.js from codebase
+
 ## 0.3.0
 
 ### Minor Changes
