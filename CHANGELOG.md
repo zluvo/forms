@@ -1,5 +1,16 @@
 # @zluvo/forms
 
+## 0.3.0
+
+### Minor Changes
+
+- c7b2665: - Deprecate `.handleSubmission()` API
+  - Create a better `.create()` method
+  - Create a `.validate()` method returned via `.create()` to both
+    validate and return data with type inference.
+  - Create `field` into a const object
+  - Create a `plugins` API, returned via `.create()`
+
 ## 0.2.2
 
 ### Patch Changes
