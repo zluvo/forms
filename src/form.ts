@@ -1,32 +1,5 @@
-import { z, ZodError } from "zod";
-
-type FieldDefinition = Record<
-  string,
-  {
-    name: string;
-    label: string;
-    placeholder: string;
-    type: string;
-    validation: z.ZodType<any, any, any>;
-  }
->;
-
-// Define a utility type for the form values
-type FormValues<T extends FieldDefinition> = {
-  [K in keyof T]: T[K]["validation"] extends z.ZodType<infer U, any, any>
-    ? U
-    : string;
-};
-
-type ValidationResult<T extends FieldDefinition> =
-  | {
-      success: true;
-      data: FormValues<T>;
-    }
-  | {
-      success: false;
-      error: string;
-    };
+import { ZodError } from "zod";
+import { FieldDefinition, FormValues, ValidationResult } from "./types";
 
 export const form = {
   create<T extends FieldDefinition>(formName: string, fields: T) {

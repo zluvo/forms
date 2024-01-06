@@ -1,24 +1,7 @@
 import { z } from "zod";
-import { validator } from "./validator";
+import { BaseFieldParams, Field } from "./types";
 
-type Field<T> = {
-  name: string;
-  label: string;
-  placeholder: string;
-  type: string;
-  validation: z.ZodType<T, any, any>;
-};
-
-type BaseFieldParams<T> = {
-  name?: string;
-  label: string;
-  placeholder: string;
-  value?: T;
-  validation?: z.ZodType<any, any, any>;
-  required?: boolean;
-};
-
-const DEFAULT_VALIDATION = validator.string();
+const DEFAULT_VALIDATION = z.string();
 
 export const field = {
   create<T>(
@@ -51,7 +34,7 @@ export const field = {
     return this.create("text", params);
   },
   number(params: BaseFieldParams<number>) {
-    return this.create("number", params, validator.coerce.number());
+    return this.create("number", params, z.coerce.number());
   },
 
   textArea(params: BaseFieldParams<string>) {
@@ -59,7 +42,7 @@ export const field = {
   },
 
   email(params: BaseFieldParams<string>) {
-    return this.create("email", params, validator.string().email());
+    return this.create("email", params, z.string().email());
   },
 
   password(params: BaseFieldParams<string>) {
@@ -70,7 +53,7 @@ export const field = {
     return this.create(
       "tel",
       params,
-      validator.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
+      z.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
         message: "Invalid telephone number format.",
       })
     );

@@ -21,17 +21,13 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var src_exports = {};
 __export(src_exports, {
   field: () => field,
-  form: () => form,
-  validator: () => validator
+  form: () => form
 });
 module.exports = __toCommonJS(src_exports);
 
-// src/validator.ts
-var import_zod = require("zod");
-var validator = import_zod.z;
-
 // src/field.ts
-var DEFAULT_VALIDATION = validator.string();
+var import_zod = require("zod");
+var DEFAULT_VALIDATION = import_zod.z.string();
 var field = {
   create(type, params, defaultValidation) {
     let validation = params.validation || defaultValidation || DEFAULT_VALIDATION;
@@ -54,13 +50,13 @@ var field = {
     return this.create("text", params);
   },
   number(params) {
-    return this.create("number", params, validator.coerce.number());
+    return this.create("number", params, import_zod.z.coerce.number());
   },
   textArea(params) {
     return this.create("textarea", params);
   },
   email(params) {
-    return this.create("email", params, validator.string().email());
+    return this.create("email", params, import_zod.z.string().email());
   },
   password(params) {
     return this.create("password", params);
@@ -69,7 +65,7 @@ var field = {
     return this.create(
       "tel",
       params,
-      validator.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
+      import_zod.z.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
         message: "Invalid telephone number format."
       })
     );
@@ -128,6 +124,5 @@ var form = {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   field,
-  form,
-  validator
+  form
 });

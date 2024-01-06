@@ -1,9 +1,6 @@
-// src/validator.ts
-import { z } from "zod";
-var validator = z;
-
 // src/field.ts
-var DEFAULT_VALIDATION = validator.string();
+import { z } from "zod";
+var DEFAULT_VALIDATION = z.string();
 var field = {
   create(type, params, defaultValidation) {
     let validation = params.validation || defaultValidation || DEFAULT_VALIDATION;
@@ -26,13 +23,13 @@ var field = {
     return this.create("text", params);
   },
   number(params) {
-    return this.create("number", params, validator.coerce.number());
+    return this.create("number", params, z.coerce.number());
   },
   textArea(params) {
     return this.create("textarea", params);
   },
   email(params) {
-    return this.create("email", params, validator.string().email());
+    return this.create("email", params, z.string().email());
   },
   password(params) {
     return this.create("password", params);
@@ -41,7 +38,7 @@ var field = {
     return this.create(
       "tel",
       params,
-      validator.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
+      z.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
         message: "Invalid telephone number format."
       })
     );
@@ -99,6 +96,5 @@ var form = {
 };
 export {
   field,
-  form,
-  validator
+  form
 };

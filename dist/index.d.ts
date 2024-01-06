@@ -1,3 +1,4 @@
+import * as zod from 'zod';
 import { z } from 'zod';
 
 type Field<T> = {
@@ -15,16 +16,6 @@ type BaseFieldParams<T> = {
     validation?: z.ZodType<any, any, any>;
     required?: boolean;
 };
-declare const field: {
-    create<T>(type: string, params: BaseFieldParams<T>, defaultValidation?: z.ZodType<T, any, any> | undefined): Field<T>;
-    text(params: BaseFieldParams<string>): Field<string>;
-    number(params: BaseFieldParams<number>): Field<number>;
-    textArea(params: BaseFieldParams<string>): Field<string>;
-    email(params: BaseFieldParams<string>): Field<string>;
-    password(params: BaseFieldParams<string>): Field<string>;
-    telephone(params: BaseFieldParams<string>): Field<string>;
-};
-
 type FieldDefinition = Record<string, {
     name: string;
     label: string;
@@ -42,6 +33,17 @@ type ValidationResult<T extends FieldDefinition> = {
     success: false;
     error: string;
 };
+
+declare const field: {
+    create<T>(type: string, params: BaseFieldParams<T>, defaultValidation?: z.ZodType<T, any, any> | undefined): Field<T>;
+    text(params: BaseFieldParams<string>): Field<string>;
+    number(params: BaseFieldParams<number>): Field<number>;
+    textArea(params: BaseFieldParams<string>): Field<string>;
+    email(params: BaseFieldParams<string>): Field<string>;
+    password(params: BaseFieldParams<string>): Field<string>;
+    telephone(params: BaseFieldParams<string>): Field<string>;
+};
+
 declare const form: {
     create<T extends FieldDefinition>(formName: string, fields: T): {
         name: string;
@@ -50,7 +52,7 @@ declare const form: {
             label: string;
             placeholder: string;
             type: string;
-            validation: z.ZodType<any, any, any>;
+            validation: zod.ZodType<any, any, any>;
         }[];
         validate: (formData: FormData) => Promise<ValidationResult<T>>;
         plugins: {
@@ -60,6 +62,4 @@ declare const form: {
     };
 };
 
-declare const validator: typeof z;
-
-export { field, form, validator };
+export { field, form };
