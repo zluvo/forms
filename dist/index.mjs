@@ -3,83 +3,57 @@ import { z } from "zod";
 var validator = z;
 
 // src/field.ts
+var DEFAULT_VALIDATION = validator.string();
 var field = {
-  /**
-   * text input
-   */
+  create(type, params, defaultValidation) {
+    let validation = params.validation || defaultValidation || DEFAULT_VALIDATION;
+    if (params.required) {
+      validation = validation.refine(
+        (data) => data !== "" && data !== void 0 && data !== null,
+        {
+          message: "Field is required."
+        }
+      );
+    }
+    return {
+      ...params,
+      name: params.name || "",
+      validation,
+      type
+    };
+  },
   text(params) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "text"
-    };
+    return this.create("text", params);
   },
-  /**
-   * number input
-   */
   number(params) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.coerce.number(),
-      type: "number"
-    };
+    return this.create("number", params, validator.coerce.number());
   },
-  /**
-   * textarea input
-   */
   textArea(params) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "textarea"
-    };
+    return this.create("textarea", params);
   },
-  /**
-   * email input
-   */
   email(params) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "email"
-    };
+    return this.create("email", params, validator.string().email());
   },
-  /**
-   * password input
-   */
   password(params) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "password"
-    };
+    return this.create("password", params);
   },
-  /**
-   * telephone input
-   */
   telephone(params) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string().refine((data) => /^\d{3}-\d{3}-\d{4}$/.test(data), {
-        message: "Invalid phone number format."
-      }),
-      type: "tel"
-    };
+    return this.create(
+      "tel",
+      params,
+      validator.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
+        message: "Invalid telephone number format."
+      })
+    );
   }
 };
 
 // src/form.ts
 var form = {
-  create(formName, fields, options = {}) {
+  create(formName, fields) {
     const plugins = [];
     let validatedData;
-    return {
+    return Object.seal({
       name: formName,
       fields: Object.entries(fields).map(([fieldName, fieldConfig]) => {
         if (!fieldConfig.name) {
@@ -115,10 +89,12 @@ var form = {
           plugins.push(plugin);
         },
         run: async () => {
-          await Promise.all(plugins.map((plugin) => plugin(validatedData)));
+          if (validatedData) {
+            await Promise.all(plugins.map((plugin) => plugin(validatedData)));
+          }
         }
       }
-    };
+    });
   }
 };
 export {

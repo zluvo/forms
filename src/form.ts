@@ -1,12 +1,20 @@
 import { z, ZodError } from "zod";
-import { FieldDefinition } from "./field";
+
+type FieldDefinition = Record<
+  string,
+  {
+    name: string;
+    label: string;
+    placeholder: string;
+    type: string;
+    validation: z.ZodType<any, any, any>;
+  }
+>;
 
 // Define a utility type for the form values
 type FormValues<T extends FieldDefinition> = {
   [K in keyof T]: T[K]["validation"] extends z.ZodType<infer U, any, any>
     ? U
-    : T[K]["type"] extends "number"
-    ? number
     : string;
 };
 
@@ -19,10 +27,6 @@ type ValidationResult<T extends FieldDefinition> =
       success: false;
       error: string;
     };
-
-type FormCreateOptions = {
-  plugins?: Array<() => void>;
-};
 
 export const form = {
   create<T extends FieldDefinition>(formName: string, fields: T) {
@@ -58,7 +62,7 @@ export const form = {
               })
             )
           ) as FormValues<T>;
-          return { success: true, data: validatedData };
+          return { success: true, data: validatedData! };
         } catch (error) {
           return { success: false, error: (error as ZodError).message };
         }
@@ -68,7 +72,10 @@ export const form = {
           plugins.push(plugin);
         },
         run: async () => {
-          await Promise.all(plugins.map((plugin) => plugin(validatedData)));
+          // Check if validatedData is defined before using it
+          if (validatedData) {
+            await Promise.all(plugins.map((plugin) => plugin(validatedData)));
+          }
         },
       },
     });

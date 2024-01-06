@@ -1,5 +1,30 @@
 import { z } from 'zod';
 
+type Field<T> = {
+    name: string;
+    label: string;
+    placeholder: string;
+    type: string;
+    validation: z.ZodType<T, any, any>;
+};
+type BaseFieldParams<T> = {
+    name?: string;
+    label: string;
+    placeholder: string;
+    value?: T;
+    validation?: z.ZodType<any, any, any>;
+    required?: boolean;
+};
+declare const field: {
+    create<T>(type: string, params: BaseFieldParams<T>, defaultValidation?: z.ZodType<T, any, any> | undefined): Field<T>;
+    text(params: BaseFieldParams<string>): Field<string>;
+    number(params: BaseFieldParams<number>): Field<number>;
+    textArea(params: BaseFieldParams<string>): Field<string>;
+    email(params: BaseFieldParams<string>): Field<string>;
+    password(params: BaseFieldParams<string>): Field<string>;
+    telephone(params: BaseFieldParams<string>): Field<string>;
+};
+
 type FieldDefinition = Record<string, {
     name: string;
     label: string;
@@ -7,113 +32,8 @@ type FieldDefinition = Record<string, {
     type: string;
     validation: z.ZodType<any, any, any>;
 }>;
-declare const field: {
-    /**
-     * text input
-     */
-    text(params: {
-        name?: string;
-        label: string;
-        placeholder: string;
-        value?: string;
-        validation?: z.ZodString;
-    }): {
-        name: string;
-        validation: z.ZodString;
-        type: string;
-        label: string;
-        placeholder: string;
-        value?: string | undefined;
-    };
-    /**
-     * number input
-     */
-    number(params: {
-        name?: string;
-        label: string;
-        placeholder: string;
-        value?: number;
-        validation?: z.ZodNumber;
-    }): {
-        name: string;
-        validation: z.ZodNumber;
-        type: string;
-        label: string;
-        placeholder: string;
-        value?: number | undefined;
-    };
-    /**
-     * textarea input
-     */
-    textArea(params: {
-        name?: string;
-        label: string;
-        placeholder: string;
-        value?: string;
-        validation?: z.ZodString;
-    }): {
-        name: string;
-        validation: z.ZodString;
-        type: string;
-        label: string;
-        placeholder: string;
-        value?: string | undefined;
-    };
-    /**
-     * email input
-     */
-    email(params: {
-        name?: string;
-        label: string;
-        placeholder: string;
-        value?: string;
-        validation?: z.ZodString;
-    }): {
-        name: string;
-        validation: z.ZodString;
-        type: string;
-        label: string;
-        placeholder: string;
-        value?: string | undefined;
-    };
-    /**
-     * password input
-     */
-    password(params: {
-        name?: string;
-        label: string;
-        placeholder: string;
-        value?: string;
-        validation?: z.ZodString;
-    }): {
-        name: string;
-        validation: z.ZodString;
-        type: string;
-        label: string;
-        placeholder: string;
-        value?: string | undefined;
-    };
-    /**
-     * telephone input
-     */
-    telephone(params: {
-        name?: string;
-        label: string;
-        placeholder: string;
-        value?: number;
-        validation?: z.ZodString;
-    }): {
-        name: string;
-        validation: z.ZodString | z.ZodEffects<z.ZodString, string, string>;
-        type: string;
-        label: string;
-        placeholder: string;
-        value?: number | undefined;
-    };
-};
-
 type FormValues<T extends FieldDefinition> = {
-    [K in keyof T]: T[K]["validation"] extends z.ZodType<infer U, any, any> ? U : T[K]["type"] extends "number" ? number : string;
+    [K in keyof T]: T[K]["validation"] extends z.ZodType<infer U, any, any> ? U : string;
 };
 type ValidationResult<T extends FieldDefinition> = {
     success: true;
@@ -122,11 +42,8 @@ type ValidationResult<T extends FieldDefinition> = {
     success: false;
     error: string;
 };
-type FormCreateOptions = {
-    plugins?: Array<() => void>;
-};
 declare const form: {
-    create<T extends FieldDefinition>(formName: string, fields: T, options?: FormCreateOptions): {
+    create<T extends FieldDefinition>(formName: string, fields: T): {
         name: string;
         fields: {
             name: string;
@@ -145,4 +62,4 @@ declare const form: {
 
 declare const validator: typeof z;
 
-export { FieldDefinition, field, form, validator };
+export { field, form, validator };

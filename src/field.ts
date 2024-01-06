@@ -1,130 +1,78 @@
 import { z } from "zod";
 import { validator } from "./validator";
 
-type Field = {
+type Field<T> = {
   name: string;
   label: string;
   placeholder: string;
   type: string;
-  validation: z.ZodType<any, any, any>;
+  validation: z.ZodType<T, any, any>;
 };
 
-export type FieldDefinition = Record<
-  string,
-  {
-    name: string;
-    label: string;
-    placeholder: string;
-    type: string;
-    validation: z.ZodType<any, any, any>;
-  }
->;
+type BaseFieldParams<T> = {
+  name?: string;
+  label: string;
+  placeholder: string;
+  value?: T;
+  validation?: z.ZodType<any, any, any>;
+  required?: boolean;
+};
+
+const DEFAULT_VALIDATION = validator.string();
 
 export const field = {
-  /**
-   * text input
-   */
-  text(params: {
-    name?: string;
-    label: string;
-    placeholder: string;
-    value?: string;
-    validation?: z.ZodString;
-  }) {
+  create<T>(
+    type: string,
+    params: BaseFieldParams<T>,
+    defaultValidation?: z.ZodType<T, any, any>
+  ): Field<T> {
+    let validation: z.ZodType<T, any, any> =
+      params.validation || defaultValidation || DEFAULT_VALIDATION;
+
+    if (params.required) {
+      // Assuming validation is a ZodString, use .min(1)
+      validation = validation.refine(
+        (data) =>
+          (data as string) !== "" && data !== undefined && data !== null,
+        {
+          message: "Field is required.",
+        }
+      );
+    }
+
     return {
       ...params,
       name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "text",
-    } satisfies Field;
+      validation,
+      type,
+    };
   },
-  /**
-   * number input
-   */
-  number(params: {
-    name?: string;
-    label: string;
-    placeholder: string;
-    value?: number;
-    validation?: z.ZodNumber;
-  }) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.coerce.number(),
-      type: "number",
-    } satisfies Field;
+  text(params: BaseFieldParams<string>) {
+    return this.create("text", params);
   },
-  /**
-   * textarea input
-   */
-  textArea(params: {
-    name?: string;
-    label: string;
-    placeholder: string;
-    value?: string;
-    validation?: z.ZodString;
-  }) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "textarea",
-    } satisfies Field;
+  number(params: BaseFieldParams<number>) {
+    return this.create("number", params, validator.coerce.number());
   },
-  /**
-   * email input
-   */
-  email(params: {
-    name?: string;
-    label: string;
-    placeholder: string;
-    value?: string;
-    validation?: z.ZodString;
-  }) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "email",
-    } satisfies Field;
+
+  textArea(params: BaseFieldParams<string>) {
+    return this.create("textarea", params);
   },
-  /**
-   * password input
-   */
-  password(params: {
-    name?: string;
-    label: string;
-    placeholder: string;
-    value?: string;
-    validation?: z.ZodString;
-  }) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation: params.validation || validator.string(),
-      type: "password",
-    } satisfies Field;
+
+  email(params: BaseFieldParams<string>) {
+    return this.create("email", params, validator.string().email());
   },
-  /**
-   * telephone input
-   */
-  telephone(params: {
-    name?: string;
-    label: string;
-    placeholder: string;
-    value?: number;
-    validation?: z.ZodString;
-  }) {
-    return {
-      ...params,
-      name: params.name || "",
-      validation:
-        params.validation ||
-        validator.string().refine((data) => /^\d{3}-\d{3}-\d{4}$/.test(data), {
-          message: "Invalid phone number format.",
-        }),
-      type: "tel",
-    } satisfies Field;
+
+  password(params: BaseFieldParams<string>) {
+    return this.create("password", params);
+  },
+
+  telephone(params: BaseFieldParams<string>) {
+    return this.create(
+      "tel",
+      params,
+      validator.string().refine((value) => /^\d{3}-\d{3}-\d{4}$/.test(value), {
+        message: "Invalid telephone number format.",
+      })
+    );
   },
 };
