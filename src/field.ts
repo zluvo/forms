@@ -23,12 +23,12 @@ export const field = {
       );
     }
 
-    return {
+    return Object.seal({
       ...params,
       name: params.name || "",
       validation,
       type,
-    };
+    });
   },
   text(params: BaseFieldParams<string>) {
     return this.create("text", params);

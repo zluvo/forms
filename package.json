@@ -8,7 +8,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup ./src/index.ts --format cjs,esm --dts",
-    "release": "pnpm run build && changeset publish",
+    "release": "pnpm build && pnpm test && changeset publish",
+    "test": "cd tests && jest",
     "lint": "tsc"
   },
   "devDependencies": {
